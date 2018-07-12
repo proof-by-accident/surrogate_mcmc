@@ -1,5 +1,5 @@
 #Embedded file name: /home/peter/Desktop/Surrogate_MCMC/Code/Back_to_Basics/sampler.py
-import line_profiler
+#import line_profiler
 from random import shuffle
 import numpy as np
 import numpy.random as npr
@@ -19,6 +19,8 @@ class da_sampler:
         self.gamma = recovery_rate
         self.p = init_probs
         self.rho = obs_prob
+
+        self.subj = None
 
     def state_traj_calc(self, exclude = None):
         trans_times_flat = {}
@@ -74,7 +76,7 @@ class da_sampler:
         valid_tpts_mask = []
         for tpoint in self.obs_times:
             curr_infected = self.state_count(tpoint)[1]
-            valid_tpts_mask.append(curr_infected > self.y[self.obs_times.index(tpoint)])
+            valid_tpts_mask.append(curr_infected >= self.y[self.obs_times.index(tpoint)])
 
         return all(valid_tpts_mask)
 
@@ -137,17 +139,19 @@ class da_sampler:
         #forward step
         self.state_traj_calc(exclude=n)
         for t_left, t_right in zip(self.obs_times[:-1], self.obs_times[1:]):
+            f = f/np.sum(f)
             L = np.array(self.rate_matrix(t_left, exclude=n, refresh=False))
             P = spla.expm((t_right - t_left) * L)
-            I = self.state_count(t_left, exclude=n, refresh=False)[1]
+            I = self.state_count(t_right, exclude=n, refresh=False)[1]
             F = [float(self.binom_pmf(I, self.rho, self.y[self.obs_times.index(t_right)])),
                  float(self.binom_pmf(I + 1, self.rho, self.y[self.obs_times.index(t_right)])),
                  float(self.binom_pmf(I, self.rho, self.y[self.obs_times.index(t_right)]))]
 
             P = (f * P.T).T * F
             f = np.sum(P, 0)
+            
             assert sum(f) != 0
-            assert np.sum(P) != 0
+
             f_vecs.append((f / sum(f), np.sum(f)))
             P_mats.append(P / np.sum(P))
 
@@ -252,6 +256,13 @@ class da_sampler:
                 T = state_right[1] - state_left[1]
                 u = npr.uniform()
                 new_trans_times.append(state_left[1] - np.log(1 - u * (1 - np.exp(-T * L))) / L)
+
+            elif state_left[0] == 'I' and state_right[0] == 'R':
+                new_trans_times.insert(0, self.obs_times[0])
+
+            else:
+                pass
+
         elif self.hmm_skeleton[0] == 'S':
             pass
         elif self.hmm_skeleton[0] == 'I':
@@ -283,3 +294,12 @@ class da_sampler:
 
         self.like_comps = [p1, p2, p3]
         return p1 * p2 * p3
+
+    def update(self, subj):
+
+        self.subj = subj
+        self.hmm_step(subj)
+        self.discrete_time_step(subj)
+        self.event_time_step(subj)
+        assert self.validAugDataChecker()
+

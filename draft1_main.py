@@ -50,10 +50,8 @@ print('Sampling...')
 bar = prog_bar.percent_bar( draws )
 bar.set()
 for subj in npr.choice(range(n_mems), draws, replace=True):
-    test.hmm_step( subj )
-    test.discrete_time_step( subj )    
-    test.event_time_step( subj )
-
+    test.update(subj)
+    
     like_samps.append( test.full_likelihood() )
 
     bar.step()
