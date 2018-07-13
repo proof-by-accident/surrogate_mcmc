@@ -1,10 +1,11 @@
 import sys
 import time
 import pickle
+import math as m
 import numpy as np
 import numpy.random as npr
-from numba import vectorize
-from numba import float64
+import numba
+from numba import cuda.jit
 
 import prog_bar
 import epidemic
@@ -27,14 +28,14 @@ def generateSyntheticData( n_mems, parms, time_data ):
 
     return (t_points, y)
 
-def expectedLikelihood( beta, gamma  ):
-#    prob_inf = 10. / n_mems
-#    init_probs = [ 1. - prob_inf, prob_inf, 0. ]
-#    
-#    t_points, y = obs                      
-#    beta, gamma, init_probs, rho = parms
-#    draws = int( aug_data_n_draws )
-#
+def expectedLikelihood( n_mems, obs, parms, aug_data_n_draws  ):
+    prob_inf = 10. / n_mems
+    init_probs = [ 1. - prob_inf, prob_inf, 0. ]
+    
+    t_points, y = obs                      
+    beta, gamma, init_probs, rho = parms
+    draws = int( aug_data_n_draws )
+
     chain = sampler.da_sampler( y, t_points, n_mems, beta, gamma, init_probs, rho)
     print('init...')
     chain.initialize()
@@ -58,62 +59,62 @@ def expectedLikelihood( beta, gamma  ):
     return np.mean( like_samps )
 
 
-def main():
-    time_start = time.time()
+@cuda.jit('void(float64[:], float64[:], float64[:]')
+def main(beta_in, gamma_in, exp_like_out):
+
+    tx = cuda.threadIdx.x
+    ty = cuda.blockIdx.x
+    bw = cuda.blockDim.x
+
+    ind = tx + ty*bw
+
+    if ind < exp_like_out.size:
+        parms = [beta[ind], gamma[ind], init_probs, rho]
+        exp_like_out[ind] = expectedLikelihood( n_mems, obs, parms, draws )
+    
+
+if __name__=='__main__':
+    beta_true = .2
+    gamma_true = 2.
 
     global n_mems
-    n_mems = int(1e2)
-
     global prob_inf
     global init_probs
+    global rho
+    global draws
+    global obs
+
+    n_mems = int(1e2)
     prob_inf = 10. / n_mems
     init_probs = [ 1. - prob_inf, prob_inf, 0. ]
-    
-    beta_true = beta = .2
-    gamma_true = gamma = 2.
-
-    global rho
     rho = .4
+    draws = 1000
     
     t_start = 0
     delta_t = 1e-3
     t_steps = 100
 
-    global t_points
-    global y
-    t_points, y = generateSyntheticData( n_mems, [beta, gamma, init_probs, rho], [t_start, delta_t, t_steps] )
+    obs = generateSyntheticData( n_mems, [beta_true, gamma_true, init_probs, rho], [t_start, delta_t, t_steps] )
 
-    global draws
-    draws = 1000
+    n_axis_ticks = 1000
+    betas = np.linspace(0,np.float64(10),n_axis_ticks)
+    gammas = np.linspace(0,np.float64(10),n_axis_ticks)
 
-    global exp_like
+    Betas, Gammas= np.meshgrid(betas, gammas)
+    Betas = np.array([ b for b_list in Betas for b in b_list ])
+    Gammas = np.array([ g for g_list in Gamma for g in g_list ])
 
-    betas = np.linspace(0,10,1000)
-    exp_like_surface = np.array([[0,0,0]]*len(betas))
+    n_grid_points = Betas.size
+    exp_like_out = np.ones(n_grid_points, dtype='float64')
 
-    for i in range(len(betas)):
-        exp_like = expectedLikelihood( betas[i], gamma )
-        exp_like_surface[i] = [betas[i],gamma,exp_like]
-        sys.stdout.write(str(i))
-        sys.stdout.flush()
+    threads_per_block = 512
+    blocks_per_grid = m.ceil( float(n_grid_points) / threads_per_block )
 
-        if i % 20 == 0:
-            print i
-            with open('like_surface.pickle','wb') as handle:
-                pickle.dump( exp_like_surface, handle ) 
+    main[blocks_per_grid, threads_per_block](Betas, Gammas, exp_like_out)
 
-        else:
-            pass
-    
-    time_end = time.time()
-    print( 'run time was ' + str(time_end-time_start) )
+           
 
-
-if __name__=='__main__':
-    main()
-    
-
-# some handy auxillary funcs that I only use sometimes
+# some handy auxillary funcs that get used for post hoc analysis
 def time_autocorr(x,lag):
     curr_mean = np.mean( x[lag:] )
     lagg_mean = np.mean( x[:-lag] )
@@ -129,3 +130,16 @@ def time_autocorr(x,lag):
 #        
 #        with open('sampler.pickle','wb') as handle:
 #            pickle.dump( test, handle )
+
+
+#    if i % 20 == 0:
+#        print i
+#        with open('like_surface.pickle','wb') as handle:
+#            pickle.dump( exp_like_surface, handle ) 
+#            
+#    else:
+#        pass
+#    
+#    print( 'run time was ' + str(time_end-time_start) )
+#    
+#    time_start = time.time()
