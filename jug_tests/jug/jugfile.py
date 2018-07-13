@@ -1,4 +1,4 @@
-crfrom itertools import product, chain
+from itertools import product, chain
 
 import numpy as np
 
@@ -7,8 +7,8 @@ from crypt import decode, letters, isgood, preprocess
 
 
 with open('secret.msg') as f:
-        ciphertext = f.read()
-        ciphertext = preprocess(ciphertext)
+    ciphertext = f.read()
+ciphertext = preprocess(ciphertext)
 
 
 @TaskGenerator
@@ -29,7 +29,7 @@ def join(partials):
 
 
 results = []
-for  in letters:
+for p in letters:
     results.append(decrypt([p]))
-    
+
 fullresults = join(results)

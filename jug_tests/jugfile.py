@@ -1,4 +1,4 @@
-crfrom itertools import product, chain
+from itertools import product, chain
 
 import numpy as np
 
@@ -29,7 +29,7 @@ def join(partials):
 
 
 results = []
-for  in letters:
+for p in letters:
     results.append(decrypt([p]))
     
 fullresults = join(results)
