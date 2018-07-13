@@ -4,8 +4,7 @@ import pickle
 import math as m
 import numpy as np
 import numpy.random as npr
-import numba
-from numba import cuda.jit
+import jug
 
 import prog_bar
 import epidemic
@@ -59,8 +58,7 @@ def expectedLikelihood( n_mems, obs, parms, aug_data_n_draws  ):
     return np.mean( like_samps )
 
 
-@cuda.jit('void(float64[:], float64[:], float64[:]')
-def main(beta_in, gamma_in, exp_like_out):
+def main(beta_in, gamma_in):
 
     tx = cuda.threadIdx.x
     ty = cuda.blockIdx.x
