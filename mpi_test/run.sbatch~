@@ -1,0 +1,12 @@
+#!/bin/bash
+
+#SBATCH --ntasks=5
+#SBATCH --time=00:00:10
+#SBATCH --qos=normal
+#SBATCH --partition=shas
+#SBATCH --job-name=test
+#SBATCH --output=test.out
+
+module load python
+srun -n $SLURM_NTASKS --mpi=pmi2 python main.py
+
