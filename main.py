@@ -28,18 +28,21 @@ def generateSyntheticData( n_mems, parms, time_data ):
 
     return (t_points, y)
 
-def expectedLikelihood( n_mems, obs, parms, aug_data_n_draws  ):   
+def initSampler(n_mems, obs, parms):
     t_points, y = [list( obj ) for obj in obs]
     beta, gamma, init_prob_inf, rho = parms
     init_probs = [ 1. - init_prob_inf, init_prob_inf, 0. ]    
-    draws = int( aug_data_n_draws )
 
     chain = sampler.da_sampler( y, t_points, n_mems, beta, gamma, init_probs, rho)
-    chain.initialize()
-    print 'chyeah'
+
+    return chain
+
+def expectedLikelihood( sampler, parms, aug_data_n_draws  ):   
+    sampler.beta, sampler.gamma, init_prob_inf, sampler.rho = parms
+    sampler.p = y[ 1. - init_prob_inf, init_prob_inf, 0. ]
 
     like_samps = np.ones( draws, dtype=np.float64 )
-    
+    draws = int( aug_data_n_draws )    
     for i in range(draws):
         try:
             chain.update( npr.choice( range(n_mems) ) )
@@ -58,6 +61,7 @@ def expectedLikelihood( n_mems, obs, parms, aug_data_n_draws  ):
 
 
 def main( rank, size, comm ):
+    # set parms for synthetic data
     beta_true = .2
     gamma_true = 2.
 
@@ -69,46 +73,47 @@ def main( rank, size, comm ):
     delta_t = 1e-3
     t_steps = 100
 
+    # initialize empty arrays for data sync across nodes
+    n_axis_ticks = size #1000
+    n_grid_pts = n_axis_ticks**2
+
+    obs = np.empty( [2, t_steps], dtype=np.float64 )
+    Betas = Gammas = np.empty( n_grid_pts, dtype=np.float64 )
+    beta = gamma = np.empty(size, dtype=np.float64)
+    sampler = None
+
+    # start the show
     if rank == 0:
         obs = np.array( generateSyntheticData( n_mems, [beta_true, gamma_true, init_prob_inf, rho], [t_start, delta_t, t_steps] ), dtype=np.float64 )
 
-    else:
-        obs = np.empty( [2, t_steps], dtype=np.float64 )
-
-    comm.bcast( [obs, MPI.DOUBLE], root=0 )
-
-    n_axis_ticks = size #1000
-    n_grid_pts = n_axis_ticks**2
-    Betas = Gammas = np.empty( n_grid_pts, dtype=np.float64 )
-
-    if rank == 0:
         betas = np.linspace(0, 10, n_axis_ticks, dtype=np.float64)
         gammas = np.linspace(0, 10, n_axis_ticks, dtype=np.float64)
 
         Betas, Gammas= np.meshgrid(betas, gammas)
 
-    beta = gamma = np.empty(size, dtype=np.float64)
+        print 'call sampler...'
+        sampler = initSampler( n_mems, obs, [ Betas[0,0], Gammas[0,0], init_prob_inf, rho ] )
+        print '...complete'
+        print 'init sampler...'
+        sampler.initialize(stop=100)
+        print '...complete'
+        print ' begin data sync...'
 
+    comm.Bcast( [obs, MPI.DOUBLE], root=0 )
     comm.Scatter(Betas, beta, root=0)
     comm.Scatter(Gammas, gamma, root=0)
+    sampler = comm.bcast( sampler, root=0 )
 
-    print 'recieved parms...'
     comm.Barrier()
-
-    if rank != 0:
-        parms_array = np.array([ [b, g, init_prob_inf, rho] for b,g in zip(beta,gamma) ])
-        draws = 1000
-        print 'rank ',rank,' begin'
-        foo = expectedLikelihood( n_mems, obs, parms_array[0], draws )
-
-        print rank, foo
+    if rank == 0:
+        print '...complete'
 
     else:
-        pass
+        parms_array = np.array([ [b, g, init_prob_inf, rho] for b,g in zip(beta,gamma) ])
+        draws = 1000
 
-    comm.Barrier()
-    comm.gather(exp_like_out, EXP_LIKE_OUT, root=0)
-
+        #foo = expectedLikelihood( n_mems, obs, parms_array[0], draws )
+        
 if __name__=='__main__':
     comm = MPI.COMM_WORLD
     size = comm.Get_size()
@@ -116,15 +121,17 @@ if __name__=='__main__':
 
     main(rank, size, comm)          
 
+    MPI.Finalize()
+
 # some handy auxillary funcs that get used for post hoc analysis
-def time_autocorr(x,lag):
-    curr_mean = np.mean( x[lag:] )
-    lagg_mean = np.mean( x[:-lag] )
-    rand_var = zip(x[:-lag],x[lag:])
-    rand_var = [ (r[0]-lagg_mean)*(r[1]-curr_mean) for r in rand_var ]
-
-    return np.mean( rand_var )
-
+#def time_autocorr(x,lag):
+#    curr_mean = np.mean( x[lag:] )
+#    lagg_mean = np.mean( x[:-lag] )
+#    rand_var = zip(x[:-lag],x[lag:])
+#    rand_var = [ (r[0]-lagg_mean)*(r[1]-curr_mean) for r in rand_var ]
+#
+#    return np.mean( rand_var )
+#
 #!!!!!!!!!!!!!!!!!CRUFT!!!!!!!!!!!!!!!!!#
 #    #handle = open('like_dict.pickle','wb')
 #    with open('like_dict.pickle','wb') as handle:

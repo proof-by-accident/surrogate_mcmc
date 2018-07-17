@@ -1,5 +1,5 @@
 #Embedded file name: /home/peter/Desktop/Surrogate_MCMC/Code/Back_to_Basics/sampler.py
-#import line_profiler
+import pickle
 from random import shuffle
 import numpy as np
 import numpy.random as npr
@@ -73,6 +73,7 @@ class da_sampler:
         return (S, I, R)
 
     def validAugDataChecker(self):
+        print 'uhhh lemme check if the aug data is still good...'
         valid_tpts_mask = []
         for tpoint in self.obs_times:
             curr_infected = self.state_count(tpoint)[1]
@@ -80,7 +81,7 @@ class da_sampler:
 
         return all(valid_tpts_mask)
 
-    def initialize(self):
+    def initialize(self, stop=None):
         self.trans_times = [[]] * self.n
         stop_q = 0
         while not self.validAugDataChecker():
@@ -115,6 +116,20 @@ class da_sampler:
                         R.append(agent + [t_curr])
                     except IndexError:
                         pass
+
+                else:
+                    pass
+
+            print stop_q
+            if stop_q == stop:
+                print 'encountered breakpoint, saving...'
+                with open('./init_breakpt_save.pickle','wb') as file:
+                    pickle.dump( self, file )
+
+                return(None)
+
+            else:
+                pass
 
             self.trans_times = S + I + R
             shuffle(self.trans_times)
