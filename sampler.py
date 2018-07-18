@@ -31,8 +31,15 @@ class da_sampler:
                 indiv = self.trans_times[i]
                 if len(indiv) > 0 and indiv[0] != self.obs_times[0]:
                     trans_times_flat[indiv[0]] = 'I'
-                elif len(indiv) == 2 and indiv[1] != self.obs_times[0]:
+
+                else:
+                    pass
+
+                if len(indiv) == 2 and indiv[1] != self.obs_times[0]:
                     trans_times_flat[indiv[1]] = 'R'
+
+                else:
+                    pass
 
         S, I, R = self.state_count(self.obs_times[0], exclude)
         self.state_traj = {self.obs_times[0]: (S, I, R)}
@@ -72,11 +79,10 @@ class da_sampler:
             S, I, R = self.state_traj[key_match]
         return (S, I, R)
 
-    def validAugDataChecker(self):
-        print 'uhhh lemme check if the aug data is still good...'
+    def validAugDataChecker(self, exclude=None):
         valid_tpts_mask = []
         for tpoint in self.obs_times:
-            curr_infected = self.state_count(tpoint)[1]
+            curr_infected = self.state_count(tpoint, exclude=None)[1]
             valid_tpts_mask.append(curr_infected >= self.y[self.obs_times.index(tpoint)])
 
         return all(valid_tpts_mask)
@@ -92,6 +98,7 @@ class da_sampler:
             S = [[]] * init_counts[0]
             I = [[t_curr]] * init_counts[1]
             R = [[t_curr, t_curr]] * init_counts[2]
+
             while t_curr <= max(self.obs_times):
                 rate = self.beta * len(S) * len(I) + self.gamma * len(I)
                 if rate == 0:
@@ -118,11 +125,9 @@ class da_sampler:
                         pass
 
                 else:
-                    pass
+                    break
 
-            print stop_q
             if stop_q == stop:
-                print 'encountered breakpoint, saving...'
                 with open('./init_breakpt_save.pickle','wb') as file:
                     pickle.dump( self, file )
 
@@ -147,12 +152,18 @@ class da_sampler:
 
     def hmm_step(self, subj):
         n = subj
-        f_vecs = [self.p]
+        self.state_traj_calc(exclude=n)        
+        I = self.state_count(self.obs_times[0], exclude=n, refresh=False)[1]
+        F = [float(self.binom_pmf(I, self.rho, self.y[0])),
+             float(self.binom_pmf(I + 1, self.rho, self.y[0])),
+             float(self.binom_pmf(I, self.rho, self.y[0]))]
+        f = [ p*phi for p,phi in zip(self.p,F) ]
+        f_vecs = [f]
         P_mats = []
         F_vecs = []
-        f = self.p
+        
         #forward step
-        self.state_traj_calc(exclude=n)
+
         for t_left, t_right in zip(self.obs_times[:-1], self.obs_times[1:]):
             f = f/np.sum(f)
             L = np.array(self.rate_matrix(t_left, exclude=n, refresh=False))
@@ -160,7 +171,7 @@ class da_sampler:
             I = self.state_count(t_right, exclude=n, refresh=False)[1]
             F = [float(self.binom_pmf(I, self.rho, self.y[self.obs_times.index(t_right)])),
                  float(self.binom_pmf(I + 1, self.rho, self.y[self.obs_times.index(t_right)])),
-                 float(self.binom_pmf(I, self.rho, self.y[self.obs_times.index(t_right)]))]
+                 float(self.binom_pmf(I, self.rho, self.y[self.obs_times.index(t_right)])) ]
 
             P = (f * P.T).T * F
             f = np.sum(P, 0)
@@ -172,6 +183,7 @@ class da_sampler:
 
         self.f_vecs = f_vecs
         self.hmm_skeleton = []
+        self.b_vecs = []
         #backward step
         for t in self.obs_times[::-1]:
             if t == self.obs_times[-1]:
@@ -179,6 +191,7 @@ class da_sampler:
                 P = P_mats.pop
                 state = npr.choice(['S', 'I', 'R'], p=b)
                 self.hmm_skeleton.insert(0, state)
+                self.b_vecs.insert(0, b)
             else:
                 state_ind = ['S', 'I', 'R'].index(state)
                 P = P_mats.pop()
@@ -187,6 +200,7 @@ class da_sampler:
                 b = b / sum(b)
                 state = npr.choice(['S', 'I', 'R'], p=b)
                 self.hmm_skeleton.insert(0, state)
+                self.b_vecs.insert(0, b)
 
         for i in range(1, len(self.hmm_skeleton)):
             curr = ['S', 'I', 'R'].index(self.hmm_skeleton[i])
@@ -317,4 +331,5 @@ class da_sampler:
         self.discrete_time_step(subj)
         self.event_time_step(subj)
         assert self.validAugDataChecker()
+        self.prev_subj = subj
 

@@ -6,21 +6,19 @@ comm = MPI.COMM_WORLD
 nproc = comm.Get_size()
 iproc = comm.Get_rank()
 
-senddata = np.ones(100, dtype=np.float64)
+senddata = np.ones(10, dtype=np.float64)
+recvdata = np.empty([nproc,10], dtype=np.float64)
+
+comm.Gather( senddata, recvdata, root=0 )
 
 if iproc == 0:
-        senddata = np.array( range(100), dtype = np.float64 )
+        print recvdata
 
-else:
-        pass
-
-comm.Bcast( [ senddata, MPI.DOUBLE ], root=0 )
-
-comm.Barrier()
-for i in range(nproc):
-        if i == iproc:
-                print (iproc, senddata )
-
+#comm.Barrier()
+#for i in range(nproc):
+#        if i == iproc:
+#                print (iproc, senddata )
+#
 MPI.Finalize()
 #
 #        while any([ t == None for t in foo ]):

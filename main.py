@@ -39,25 +39,24 @@ def initSampler(n_mems, obs, parms):
 
 def expectedLikelihood( sampler, parms, aug_data_n_draws  ):   
     sampler.beta, sampler.gamma, init_prob_inf, sampler.rho = parms
-    sampler.p = y[ 1. - init_prob_inf, init_prob_inf, 0. ]
+    sampler.p = [ 1. - init_prob_inf, init_prob_inf, 0. ]
 
-    like_samps = np.ones( draws, dtype=np.float64 )
     draws = int( aug_data_n_draws )    
+    like_samps = np.ones( draws, dtype=np.float64 )
     for i in range(draws):
         try:
-            chain.update( npr.choice( range(n_mems) ) )
+            sampler.update( npr.choice( range( sampler.n ) ) )
 
         except AssertionError:
-            like_samps = 'Internal Assertion Error'
-            break
+            with open('./saves/rank'+str(rank)+'.pl','wb') as file:
+                pickle.dump( sampler, file )
+
+            like_samps = 'Internal Assertion Error on draw ' + str(i)
+            return like_samps
         
-        like_samps[i] = chain.full_likelihood()
+        like_samps[i] = sampler.full_likelihood()
 
-    if type( like_samps ) != str:
-        return np.mean( like_samps )
-
-    else:
-        return like_samps
+    return np.mean( like_samps )
 
 
 def main( rank, size, comm ):
@@ -74,7 +73,7 @@ def main( rank, size, comm ):
     t_steps = 100
 
     # initialize empty arrays for data sync across nodes
-    n_axis_ticks = size #1000
+    n_axis_ticks = size
     n_grid_pts = n_axis_ticks**2
 
     obs = np.empty( [2, t_steps], dtype=np.float64 )
@@ -82,20 +81,23 @@ def main( rank, size, comm ):
     beta = gamma = np.empty(size, dtype=np.float64)
     sampler = None
 
+    exp_like_row = np.empty(size, dtype=np.float64)
+    exp_like_out = np.empty([size,size], dtype=np.float64)
+
     # start the show
     if rank == 0:
         obs = np.array( generateSyntheticData( n_mems, [beta_true, gamma_true, init_prob_inf, rho], [t_start, delta_t, t_steps] ), dtype=np.float64 )
 
-        betas = np.linspace(0, 10, n_axis_ticks, dtype=np.float64)
-        gammas = np.linspace(0, 10, n_axis_ticks, dtype=np.float64)
+        betas = np.linspace(.001, 10, n_axis_ticks, dtype=np.float64)
+        gammas = np.linspace(.001, 10, n_axis_ticks, dtype=np.float64)
 
         Betas, Gammas= np.meshgrid(betas, gammas)
 
         print 'call sampler...'
-        sampler = initSampler( n_mems, obs, [ Betas[0,0], Gammas[0,0], init_prob_inf, rho ] )
+        sampler = initSampler( n_mems, obs, [ beta_true, gamma_true, init_prob_inf, rho ] )
         print '...complete'
         print 'init sampler...'
-        sampler.initialize(stop=100)
+        sampler.initialize()
         print '...complete'
         print ' begin data sync...'
 
@@ -111,8 +113,28 @@ def main( rank, size, comm ):
     else:
         parms_array = np.array([ [b, g, init_prob_inf, rho] for b,g in zip(beta,gamma) ])
         draws = 1000
+        print 'node ',rank,' beginning evals...'
+        for i in range(len(parms_array)):
+            ex_lk = expectedLikelihood( sampler, parms_array[i], draws )
+            exp_like_row[i] = ex_lk           
+            
+            if i%20 == 0:
+                print '...node ',rank,' checking in on run ',i,'...'
+                with open('./saves/rank'+str(rank)+'_exlk.pl','wb') as f:
+                    save = [parms_array, exp_like_row]
+                    pickle.dump( save, f)
 
-        #foo = expectedLikelihood( n_mems, obs, parms_array[0], draws )
+        print '...node ', rank, ' complete'
+
+    comm.Gather( exp_like_row, exp_like_out, root=0 )
+    if rank == 0:
+        save = [Betas,Gammas,exp_like_out]
+        with open('./exp_like.pl','wb') as f:
+            pickle.dump( save, f )
+
+    else:
+        pass
+
         
 if __name__=='__main__':
     comm = MPI.COMM_WORLD
