@@ -37,24 +37,28 @@ def initSampler(n_mems, obs, parms):
 
     return chain
 
-def expectedLikelihood( sampler, parms, aug_data_n_draws  ):   
+def expectedLikelihood( sampler, parms, aug_data_n_draws, thin=50  ):   
     sampler.beta, sampler.gamma, init_prob_inf, sampler.rho = parms
     sampler.p = [ 1. - init_prob_inf, init_prob_inf, 0. ]
 
     draws = int( aug_data_n_draws )    
-    like_samps = np.ones( draws, dtype=np.float64 )
+    like_samps = []
     for i in range(draws):
         try:
             sampler.update( npr.choice( range( sampler.n ) ) )
 
         except AssertionError:
-            with open('./saves/rank'+str(rank)+'.pl','wb') as file:
+            with open('./saves2/rank'+str(rank)+'_errordump.pl','wb') as file:
                 pickle.dump( sampler, file )
 
             like_samps = 'Internal Assertion Error on draw ' + str(i)
             return like_samps
         
-        like_samps[i] = sampler.full_likelihood()
+        if i % thin == 0:
+            like_samps.append( sampler.full_likelihood() )
+
+        else:
+            pass
 
     return np.mean( like_samps )
 
@@ -73,12 +77,21 @@ def main( rank, size, comm ):
     t_steps = 100
 
     # initialize empty arrays for data sync across nodes
-    n_axis_ticks = size
+    n_axis_ticks = 100
     n_grid_pts = n_axis_ticks**2
 
-    obs = np.empty( [2, t_steps], dtype=np.float64 )
-    Betas = Gammas = np.empty( n_grid_pts, dtype=np.float64 )
-    beta = gamma = np.empty(size, dtype=np.float64)
+    pts_per_node = n_grid_pts / size
+
+    if int(pts_per_node) != pts_per_node and rank == 0:
+        print 'number of grid pts not multiple of number of nodes'
+        pts_per_node = int(pts_per_node)
+
+    else:
+        pts_per_node = int(pts_per_node)
+    
+    parms_array_send = np.empty([n_grid_pts, 4], dtype=np.float64)
+    parms_array = np.empty([pts_per_node,4], dtype=np.float64)
+
     sampler = None
 
     exp_like_row = np.empty(size, dtype=np.float64)
@@ -93,6 +106,8 @@ def main( rank, size, comm ):
 
         Betas, Gammas= np.meshgrid(betas, gammas)
 
+        parms_array_send = np.array([ [b, g, init_prob_inf, rho] for b,g in zip([b for beta_list in Betas for b in beta_list], [g for gamma_list in Gammas for g in gamma_list]) ])
+
         print 'call sampler...'
         sampler = initSampler( n_mems, obs, [ beta_true, gamma_true, init_prob_inf, rho ] )
         print '...complete'
@@ -101,9 +116,7 @@ def main( rank, size, comm ):
         print '...complete'
         print ' begin data sync...'
 
-    comm.Bcast( [obs, MPI.DOUBLE], root=0 )
-    comm.Scatter(Betas, beta, root=0)
-    comm.Scatter(Gammas, gamma, root=0)
+    comm.Scatter(parms_array_send, parms_array, root=0)
     sampler = comm.bcast( sampler, root=0 )
 
     comm.Barrier()
@@ -111,25 +124,29 @@ def main( rank, size, comm ):
         print '...complete'
 
     else:
-        parms_array = np.array([ [b, g, init_prob_inf, rho] for b,g in zip(beta,gamma) ])
-        draws = 1000
-        print 'node ',rank,' beginning evals...'
-        for i in range(len(parms_array)):
-            ex_lk = expectedLikelihood( sampler, parms_array[i], draws )
-            exp_like_row[i] = ex_lk           
-            
-            if i%20 == 0:
-                print '...node ',rank,' checking in on run ',i,'...'
-                with open('./saves/rank'+str(rank)+'_exlk.pl','wb') as f:
-                    save = [parms_array, exp_like_row]
-                    pickle.dump( save, f)
+        pass
 
-        print '...node ', rank, ' complete'
+    draws = 5000
+    print 'node ',rank,' beginning evals...'
+    for i in range(len(parms_array)):
+        ex_lk = expectedLikelihood( sampler, parms_array[i], draws )
+        exp_like_row[i] = ex_lk           
+        
+        if i%20 == 0:
+            print '...node ',rank,' checking in on run ',i,'...'
+            with open('./saves2/rank'+str(rank)+'_exlk.pl','wb') as f:
+                save = [parms_array, exp_like_row]
+                pickle.dump( save, f)
 
+        else:
+            pass
+                
+    print '...node ', rank, ' complete'
+                
     comm.Gather( exp_like_row, exp_like_out, root=0 )
     if rank == 0:
-        save = [Betas,Gammas,exp_like_out]
-        with open('./exp_like.pl','wb') as f:
+        save = [parms_array_send, exp_like_out]
+        with open('./exp_like2.pl','wb') as f:
             pickle.dump( save, f )
 
     else:

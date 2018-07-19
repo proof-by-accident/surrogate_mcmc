@@ -6,13 +6,24 @@ comm = MPI.COMM_WORLD
 nproc = comm.Get_size()
 iproc = comm.Get_rank()
 
-senddata = np.ones(10, dtype=np.float64)
-recvdata = np.empty([nproc,10], dtype=np.float64)
-
-comm.Gather( senddata, recvdata, root=0 )
+parms_array_send = np.empty( [nproc**2,2], dtype=np.float64 )
+parms_array = np.empty([nproc,2], dtype=np.float64)
 
 if iproc == 0:
-        print recvdata
+        x = y = np.linspace(0,1,nproc)
+        X,Y = np.meshgrid(x,y)
+        parms_array_send = np.array([ [a,b] for a,b in zip([x for x_list in X for x in x_list], [y for y_list in Y for y in y_list]) ])
+else:
+        pass
+
+comm.Scatter( parms_array_send, parms_array, root=0)
+
+if iproc !=0 :
+        print iproc, parms_array
+
+else:
+        pass
+        #print iproc, X,Y
 
 #comm.Barrier()
 #for i in range(nproc):

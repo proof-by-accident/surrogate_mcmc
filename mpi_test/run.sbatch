@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --ntasks=5
+#SBATCH --ntasks=10
 #SBATCH --time=00:07:00
-#SBATCH --qos=normal
+#SBATCH --qos=debug
 #SBATCH --partition=shas
 #SBATCH --job-name=test
 #SBATCH --output=test.out
