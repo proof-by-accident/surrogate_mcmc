@@ -101,8 +101,8 @@ def main( rank, size, comm ):
     if rank == 0:
         obs = np.array( generateSyntheticData( n_mems, [beta_true, gamma_true, init_prob_inf, rho], [t_start, delta_t, t_steps] ), dtype=np.float64 )
 
-        betas = np.linspace(.001, 10, n_axis_ticks, dtype=np.float64)
-        gammas = np.linspace(.001, 10, n_axis_ticks, dtype=np.float64)
+        betas = np.linspace(.001, 4, n_axis_ticks, dtype=np.float64)
+        gammas = np.linspace(.001, 4, n_axis_ticks, dtype=np.float64)
 
         Betas, Gammas= np.meshgrid(betas, gammas)
 
