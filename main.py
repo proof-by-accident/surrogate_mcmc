@@ -48,7 +48,7 @@ def expectedLikelihood( sampler, parms, aug_data_n_draws, thin=50  ):
             sampler.update( npr.choice( range( sampler.n ) ) )
 
         except AssertionError:
-            with open('./saves2/rank'+str(rank)+'_errordump.pl','wb') as file:
+            with open('./saves/rank'+str(rank)+'_errordump.pl','wb') as file:
                 pickle.dump( sampler, file )
 
             like_samps = 'Internal Assertion Error on draw ' + str(i)
@@ -134,7 +134,7 @@ def main( rank, size, comm ):
         
         if i%20 == 0:
             print '...node ',rank,' checking in on run ',i,'...'
-            with open('./saves2/rank'+str(rank)+'_exlk.pl','wb') as f:
+            with open('./saves/rank'+str(rank)+'_exlk.pl','wb') as f:
                 save = [parms_array, exp_like_row]
                 pickle.dump( save, f)
 

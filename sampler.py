@@ -301,24 +301,33 @@ class da_sampler:
         self.trans_times[n] = new_trans_times
 
     def full_likelihood(self):
-        da_infec_traj = np.array([ self.state_count(t)[1] for t in self.obs_times ])
-        p1 = np.prod(np.array([ self.binom_pmf(i, self.rho, obs) for i, obs in zip(da_infec_traj, self.y)[1:] ]))
+        # from the augmented data (AD) calculate I(t) for all observation times
+        ad_infec_traj = np.array([ self.state_count(t)[1] for t in self.obs_times ])
+
+        # calculate observation probabilities given AD 
+        p1 = np.prod(np.array([ self.binom_pmf(i, self.rho, obs) for i, obs in zip(ad_infec_traj, self.y) ]))
+
+        # calculate prob of AD at initialization time given init_prob_inf
         p2 = np.prod([ p ** s for p, s in zip(self.p, self.state_count(self.obs_times[0])) ])
+
+        # calculate the probability of AD trajectory given parameter values beta and gamma
         trans_times_flat = []
         for indiv in self.trans_times:
-            if len(indiv) > 0 and indiv[0] != self.obs_times[0]:
-                trans_times_flat.append(('I', indiv[0]))
-            elif len(indiv) == 2 and indiv[1] != self.obs_times[0]:
-                trans_times_flat.append(('R', indiv[1]))
+            for t in indiv:
+                if t != self.obs_times[0]:
+                    trans_times_flat.append([ ['I','R'][ indiv.index(t) ], t ])
+
+                else:
+                    pass
 
         trans_times_flat = [ trans_times_flat[i] for i in np.argsort([ t[1] for t in trans_times_flat ]) ]
         p3 = 1
         for t_left, t_right in zip(trans_times_flat[:-1], trans_times_flat[1:]):
             if t_right[0] == 'I':
-                S, I, R = self.state_count(t_right[0])
+                S, I, R = self.state_count(t_right[1])
                 p3 *= self.beta * I * np.exp(-(t_right[1] - t_left[1]) * (self.beta * S * I + self.gamma * I))
             else:
-                S, I, R = self.state_count(t_right[0])
+                S, I, R = self.state_count(t_right[1])
                 p3 *= self.gamma * np.exp(-(t_right[1] - t_left[1]) * (self.beta * S * I + self.gamma * I))
 
         self.like_comps = [p1, p2, p3]
