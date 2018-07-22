@@ -60,7 +60,7 @@ def expectedLikelihood( sampler, parms, aug_data_n_draws, thin=50  ):
         else:
             pass
 
-    return np.mean( like_samps )
+    return like_samps
 
 
 def main( rank, size, comm ):
@@ -130,13 +130,18 @@ def main( rank, size, comm ):
     print 'node ',rank,' beginning evals...'
     for i in range(len(parms_array)):
         ex_lk = expectedLikelihood( sampler, parms_array[i], draws )
-        exp_like_row[i] = ex_lk           
+        exp_like_row[i] = np.mean( ex_lk )          
         
         if i%20 == 0:
             print '...node ',rank,' checking in on run ',i,'...'
             with open('./saves/rank'+str(rank)+'_exlk.pl','wb') as f:
                 save = [parms_array, exp_like_row]
                 pickle.dump( save, f)
+
+            with open('./saves/rank'+str(rank)+'_lk_smps.pl','wb') as f:
+                save = [parms_array, ex_lk]
+                pickle.dump( save, f)
+
 
         else:
             pass
@@ -146,7 +151,7 @@ def main( rank, size, comm ):
     comm.Gather( exp_like_row, exp_like_out, root=0 )
     if rank == 0:
         save = [parms_array_send, exp_like_out]
-        with open('./exp_like2.pl','wb') as f:
+        with open('./exp_like.pl','wb') as f:
             pickle.dump( save, f )
 
     else:
