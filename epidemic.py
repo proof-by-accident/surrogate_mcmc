@@ -41,20 +41,23 @@ class epidemic:
         else:
             assert curr_t <= end_t
 
-        while curr_t <= end_t:           
+        while curr_t < end_t:           
             self.S = np.sum([a == 's' for a in self.pop])
             self.I = np.sum([a == 'i' for a in self.pop])
             self.R = np.sum([a == 'r' for a in self.pop])
 
             rate = self.beta*self.S*self.I + self.gamma*self.I
-            p_infec = self.beta*self.S*self.I/rate
+
             self.rate = rate
             
             if rate == 0:
+                p_infec = 0
                 infec_flag = -1
-                next_t = 0
+                next_t = end_t - curr_t
+                
 
             else:
+                p_infec = self.beta*self.S*self.I/rate
                 next_t = np.random.exponential( 1/rate)
                 infec_flag = np.random.binomial(1, p_infec)
 

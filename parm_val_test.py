@@ -4,7 +4,7 @@ import pickle
 import math as m
 import numpy as np
 import numpy.random as npr
-#from mpi4py import MPI
+from mpi4py import MPI
 
 import prog_bar
 import epidemic
@@ -26,7 +26,7 @@ def generateSyntheticData( n_mems, parms, time_data ):
         traj.append( epi.observe_true() )
         y = [npr.binomial(obs[1],rho) for obs in traj]
 
-    return (t_points, y, traj)
+    return (t_points, y)
 
 def initSampler(n_mems, obs, parms):
     t_points, y = [list( obj ) for obj in obs]
@@ -37,13 +37,12 @@ def initSampler(n_mems, obs, parms):
 
     return chain
 
-def expectedLikelihood( sampler, parms, aug_data_n_draws, thin=50, rank=0  ):   
+def expectedLikelihood( sampler, parms, aug_data_n_draws, thin=50  ):   
     sampler.beta, sampler.gamma, init_prob_inf, sampler.rho = parms
     sampler.p = [ 1. - init_prob_inf, init_prob_inf, 0. ]
 
-    draws = int( aug_data_n_draws )
+    draws = int( aug_data_n_draws )    
     like_samps = []
-    sampler.initialize()
     for i in range(draws):
         try:
             sampler.update( npr.choice( range( sampler.n ) ) )
@@ -55,7 +54,11 @@ def expectedLikelihood( sampler, parms, aug_data_n_draws, thin=50, rank=0  ):
             like_samps = 'Internal Assertion Error on draw ' + str(i)
             return like_samps
         
-        like_samps.append( sampler.full_likelihood() )
+        if i % thin == 0:
+            like_samps.append( sampler.full_likelihood() )
+
+        else:
+            pass
 
     return like_samps
 
@@ -65,9 +68,9 @@ def main( rank, size, comm ):
     beta_true = .2
     gamma_true = 2.
 
-    n_mems = 50
-    init_prob_inf = 5 / n_mems
-    rho = .8
+    n_mems = int(1e2)
+    init_prob_inf = 10. / n_mems
+    rho = .4
    
     t_start = 0
     delta_t = 1e-3
@@ -96,7 +99,7 @@ def main( rank, size, comm ):
 
     # start the show
     if rank == 0:
-        obs = np.array( generateSyntheticData( n_mems, [beta_true, gamma_true, init_prob_inf, rho], [t_start, delta_t, t_steps] )[:2], dtype=np.float64 )
+        obs = np.array( generateSyntheticData( n_mems, [beta_true, gamma_true, init_prob_inf, rho], [t_start, delta_t, t_steps] ), dtype=np.float64 )
 
         betas = np.linspace(.001, 4, n_axis_ticks, dtype=np.float64)
         gammas = np.linspace(.001, 4, n_axis_ticks, dtype=np.float64)
@@ -123,11 +126,10 @@ def main( rank, size, comm ):
     else:
         pass
 
-    draws = 1000
+    draws = 5000
     print 'node ',rank,' beginning evals...'
     for i in range(len(parms_array)):
-        ex_lk = expectedLikelihood( sampler, parms_array[i], draws, rank=rank )
-        pickle.dump( open('./saves/rank'+str(rank)+'_'+str(i)+'_exlk.pl','wb'), [parms_array[i],ex_lk] )
+        ex_lk = expectedLikelihood( sampler, parms_array[i], draws )
         exp_like_row[i] = np.mean( ex_lk )          
         
         if i%20 == 0:
@@ -155,41 +157,6 @@ def main( rank, size, comm ):
     else:
         pass
 
-def testground(beta, gamma):    
-    # set parms for synthetic data
-    n_mems = 20
-    init_prob_inf = 1. / float(n_mems)
-    rho = .8
-    
-    t_start = 0
-    delta_t = 1e-2
-    t_steps = 20
-    
-    n_axis_ticks = 5
-    n_grid_pts = n_axis_ticks**2
-    
-    obs = np.array( generateSyntheticData( n_mems, [beta, gamma, init_prob_inf, rho], [t_start, delta_t, t_steps] )[:2], dtype=np.float64 )
-    
-    betas = np.linspace(.1, .3, n_axis_ticks, dtype=np.float64)
-    gammas = np.linspace(1, 3, n_axis_ticks, dtype=np.float64)
-    
-    Betas, Gammas= np.meshgrid(betas, gammas)
-    
-    parms_array = np.array([ [b, g, init_prob_inf, rho] for b,g in zip([b for beta_list in Betas for b in beta_list], [g for gamma_list in Gammas for g in gamma_list]) ])
-    
-    draws = 1000
-    samps = np.empty( [n_grid_pts, draws], dtype=np.float64 )
-    sampler = initSampler( n_mems, obs, [ beta, gamma, init_prob_inf, rho ] )
-
-    for i in range(len(parms_array)):
-        print i
-        samps_row = expectedLikelihood( sampler, parms_array[i], draws)
-        samps[i,:] = samps_row
-
-#    return obs, sampler, parms_array
-    return parms_array, samps
-
-    
         
 if __name__=='__main__':
     comm = MPI.COMM_WORLD

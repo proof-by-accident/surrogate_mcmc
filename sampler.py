@@ -7,6 +7,7 @@ import scipy as sp
 import scipy.stats as sps
 import scipy.linalg as spla
 import math as m
+import bisect
 
 class da_sampler:
 
@@ -52,14 +53,21 @@ class da_sampler:
                 R += 1
             self.state_traj[key] = (S, I, R)
 
-    def state_count(self, time, exclude = None, refresh = True):
+    def state_count(self, time, exclude = None, refresh = True, trans_times = None):
+        if trans_times == None:
+            trans_times = self.trans_times
+
+        else:
+            pass
+        
+        
         if refresh:
             S, I, R = (0, 0, 0)
-            for i in range(0, len(self.trans_times)):
+            for i in range(0, len(trans_times)):
                 if i == exclude:
                     pass
                 else:
-                    indiv = self.trans_times[i]
+                    indiv = trans_times[i]
                     if len(indiv) == 0:
                         S += 1
                     elif len(indiv) == 1:
@@ -139,8 +147,8 @@ class da_sampler:
             self.trans_times = S + I + R
             shuffle(self.trans_times)
 
-    def rate_matrix(self, time, exclude = None, refresh = True):
-        self.I = self.state_count(time, exclude=exclude, refresh=refresh)[1]
+    def rate_matrix(self, time, exclude = None, refresh = True, trans_times = None):
+        self.I = self.state_count(time, exclude=exclude, refresh=refresh, trans_times = trans_times)[1]
         return np.array([[-self.beta * self.I, self.beta * self.I, 0], [0, -self.gamma, self.gamma], [0, 0, 0]])
 
     def binom_pmf(self, n, rho, y):           
@@ -298,8 +306,134 @@ class da_sampler:
             new_trans_times = new_trans_times + [self.obs_times[0]]
         else:
             new_trans_times = new_trans_times + [self.obs_times[0]] * 2
-        self.trans_times[n] = new_trans_times
 
+        self.cand_trans_times = new_trans_times
+
+
+    def met_hast_step(self, subj):
+        n = subj
+        a = self.accept_prob(n)
+
+        accept_flag = npr.binomial(1, a)
+
+        if accept_flag == 1:
+            self.trans_times[n] = self.cand_trans_times
+
+        else:
+            pass
+            
+
+    def accept_prob(self, subj):
+        n = subj
+        
+        # calculate the probability of current and proposed AD trajectories given parameter values beta and gamma
+
+        #################
+        # calc curr probs
+        trans_times = self.trans_times
+        trans_times_flat = []
+        for indiv in trans_times:
+            for t in indiv:
+                if t != self.obs_times[0]:
+                    trans_times_flat.append([ ['I','R'][ indiv.index(t) ], t ])
+
+                else:
+                    pass
+
+        if len( self.trans_times[n] ) == 0:
+            p_traj_curr = self.p[0]
+
+        elif self.trans_times[n][0] > self.obs_times[0]:
+            p_traj_curr = self.p[0]
+
+        elif len(self.trans_times[n]) == 2 and self.trans_times[n][1] > self.obs_times[0]:
+            p_traj_curr = self.p[1]
+
+        else:
+            p_traj_curr = self.p[2]
+
+                
+        trans_times_flat = [ trans_times_flat[i] for i in np.argsort([ t[1] for t in trans_times_flat ]) ]
+        S, I, R = self.state_count(self.obs_times[0], trans_times = trans_times)
+        p_x_curr = self.p[0]**S * self.p[1]**I * self.p[2]**R
+        
+        for t_left, t_right in zip(trans_times_flat[:-1], trans_times_flat[1:]):
+            L = self.rate_matrix(self, t_left[1], trans_times = trans_times)
+            P = spla.expm( (t_right[1]-t_left[1])*L )
+
+            left_state_ind = bisect.bisect( trans_times[n], t_left[1] )
+            right_state_ind = bisect.bisect( trans_times[n], t_right[1] )
+
+            p_traj_curr *= P[ left_state_ind, right_state_ind ]
+
+            if t_right[0] == 'I':
+                S, I, R = self.state_count(t_right[1])
+                p_x_curr *= self.beta * I * np.exp(-(t_right[1] - t_left[1]) * (self.beta * S * I + self.gamma * I))
+            else:
+                S, I, R = self.state_count(t_right[1])
+                p_x_curr *= self.gamma * np.exp(-(t_right[1] - t_left[1]) * (self.beta * S * I + self.gamma * I))        
+
+        ######################
+        # calc candidate probs
+        trans_times[n] = self.cand_trans_times
+        trans_times_flat = []
+        for indiv in trans_times:
+            for t in indiv:
+                if t != self.obs_times[0]:
+                    trans_times_flat.append([ ['I','R'][ indiv.index(t) ], t ])
+
+                else:
+                    pass
+
+        if len(self.cand_trans_times) == 0:
+            p_traj_cand = self.p[0]        
+                
+        elif self.cand_trans_times[0] > self.obs_times[0]:
+            p_traj_cand = self.p[0]
+
+        elif len(self.cand_trans_times) == 2 and self.cand_trans_times[1] > self.obs_times[0]:
+            p_traj_cand = self.p[1]
+
+        else:
+            p_traj_cand = self.p[2]
+                
+        trans_times_flat = [ trans_times_flat[i] for i in np.argsort([ t[1] for t in trans_times_flat ]) ]
+        S, I, R = self.state_count(self.obs_times[0], trans_times = trans_times)
+        p_x_cand = self.p[0]**S * self.p[1]**I * self.p[2]**R
+        for t_left, t_right in zip(trans_times_flat[:-1], trans_times_flat[1:]):
+            L = self.rate_matrix(self, t_left[1], trans_times = trans_times)
+            P = spla.expm( (t_right[1]-t_left[1])*L )
+
+            left_state_ind = bisect.bisect( trans_times[n], t_left[1] )
+            right_state_ind = bisect.bisect( trans_times[n], t_right[1] )
+
+            p_traj_cand *= P[ left_state_ind, right_state_ind ]
+            
+            if t_right[0] == 'I':
+                S, I, R = self.state_count(t_right[1], trans_times = trans_times)
+                p_x_cand *= self.beta * I * np.exp(-(t_right[1] - t_left[1]) * (self.beta * S * I + self.gamma * I))
+            else:
+                S, I, R = self.state_count(t_right[1], trans_times = trans_times)
+                p_x_cand *= self.gamma * np.exp(-(t_right[1] - t_left[1]) * (self.beta * S * I + self.gamma * I))              
+
+        if p_x_cand == 0 or p_traj_curr == 0:
+            a = 0.
+
+        elif p_x_curr == 0 or p_traj_cand == 0:
+            a = 1.
+
+        else:
+            a = ( p_x_cand * p_traj_curr ) / ( p_x_curr * p_traj_cand )
+
+        if not np.isnan(a):
+            return min(a,1.)
+
+        else:
+            return 1
+                
+                        
+                    
+                
     def full_likelihood(self):
         # from the augmented data (AD) calculate I(t) for all observation times
         ad_infec_traj = np.array([ self.state_count(t)[1] for t in self.obs_times ])
@@ -339,6 +473,7 @@ class da_sampler:
         self.hmm_step(subj)
         self.discrete_time_step(subj)
         self.event_time_step(subj)
+        self.met_hast_step(subj)
         assert self.validAugDataChecker()
         self.prev_subj = subj
 
