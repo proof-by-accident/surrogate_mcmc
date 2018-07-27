@@ -66,7 +66,7 @@ def main( rank, size, comm ):
     gamma_true = 2.
 
     n_mems = 50
-    init_prob_inf = 5 / n_mems
+    init_prob_inf = 5. / float(n_mems)
     rho = .8
    
     t_start = 0
