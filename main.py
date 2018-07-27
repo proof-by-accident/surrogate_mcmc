@@ -91,8 +91,8 @@ def main( rank, size, comm ):
 
     sampler = None
 
-    exp_like_row = np.empty(size, dtype=np.float64)
-    exp_like_out = np.empty([size,size], dtype=np.float64)
+    exp_like_block = np.empty([pts_per_node,3], dtype=np.float64)
+    exp_like_out = np.empty([n_grid_pts,3], dtype=np.float64)
 
     # start the show
     if rank == 0:
@@ -123,12 +123,12 @@ def main( rank, size, comm ):
     else:
         pass
 
-    draws = 1000
+    draws = 10
     print 'node ',rank,' beginning evals...'
     for i in range(len(parms_array)):
         ex_lk = expectedLikelihood( sampler, parms_array[i], draws, rank=rank )
-        pickle.dump( [parms_array[i],ex_lk], open('./saves/rank'+str(rank)+'_'+str(i)+'_exlk.pl','wb') )
-        exp_like_row[i] = np.mean( ex_lk )          
+        exp_like_block[i,:2] = parms_array[i,:2]
+        exp_like_block[i,2] = np.mean( ex_lk )          
         
         if i%20 == 0:
             print '...node ',rank,' checking in on run ',i,'...'
@@ -146,7 +146,7 @@ def main( rank, size, comm ):
                 
     print '...node ', rank, ' complete'
                 
-    comm.Gather( exp_like_row, exp_like_out, root=0 )
+    comm.Gather( exp_like_block, exp_like_out, root=0 )
     if rank == 0:
         save = [parms_array_send, exp_like_out]
         with open('./exp_like.pl','wb') as f:
