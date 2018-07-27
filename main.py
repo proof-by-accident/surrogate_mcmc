@@ -4,7 +4,7 @@ import pickle
 import math as m
 import numpy as np
 import numpy.random as npr
-#from mpi4py import MPI
+from mpi4py import MPI
 
 import prog_bar
 import epidemic
@@ -127,7 +127,7 @@ def main( rank, size, comm ):
     print 'node ',rank,' beginning evals...'
     for i in range(len(parms_array)):
         ex_lk = expectedLikelihood( sampler, parms_array[i], draws, rank=rank )
-        pickle.dump( open('./saves/rank'+str(rank)+'_'+str(i)+'_exlk.pl','wb'), [parms_array[i],ex_lk] )
+        pickle.dump( [parms_array[i],ex_lk], open('./saves/rank'+str(rank)+'_'+str(i)+'_exlk.pl','wb') )
         exp_like_row[i] = np.mean( ex_lk )          
         
         if i%20 == 0:
