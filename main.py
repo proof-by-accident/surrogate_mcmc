@@ -7,8 +7,8 @@ import numpy.random as npr
 from mpi4py import MPI
 
 import prog_bar
-import epidemic
-import sampler
+import data_gen
+import fintzi_sampler as fs
 
 
 def generateSyntheticData( n_mems, parms, time_data ):
@@ -17,7 +17,7 @@ def generateSyntheticData( n_mems, parms, time_data ):
     init_probs = [ 1. - init_prob_inf, init_prob_inf, 0. ]    
     t_start, delta_t, t_steps = time_data
     
-    epi = epidemic.epidemic( n_mems, beta, gamma, init_probs, 1.)
+    epi = data_gen.epidemic( n_mems, beta, gamma, init_probs, 1.)
     
     t_points = list(np.arange(t_start, delta_t*t_steps, delta_t))
     traj = []
@@ -33,7 +33,7 @@ def initSampler(n_mems, obs, parms):
     beta, gamma, init_prob_inf, rho = parms
     init_probs = [ 1. - init_prob_inf, init_prob_inf, 0. ]    
 
-    chain = sampler.da_sampler( y, t_points, n_mems, beta, gamma, init_probs, rho)
+    chain = fs.da_sampler( y, t_points, n_mems, beta, gamma, init_probs, rho)
 
     return chain
 
@@ -123,7 +123,7 @@ def main( rank, size, comm ):
     else:
         pass
 
-    draws = 10
+    draws = 1000
     print 'node ',rank,' beginning evals...'
     for i in range(len(parms_array)):
         ex_lk = expectedLikelihood( sampler, parms_array[i], draws, rank=rank )
@@ -133,10 +133,10 @@ def main( rank, size, comm ):
         if i%20 == 0:
             print '...node ',rank,' checking in on run ',i,'...'
             with open('./saves/rank'+str(rank)+'_exlk.pl','wb') as f:
-                save = [parms_array, exp_like_row]
+                save = [parms_array, exp_like_block]
                 pickle.dump( save, f)
 
-            with open('./saves/rank'+str(rank)+'_lk_smps.pl','wb') as f:
+            with open('./saves/rank'+str(rank)+'_'+str(i)+'_lk_smps.pl','wb') as f:
                 save = [parms_array, ex_lk]
                 pickle.dump( save, f)
 
