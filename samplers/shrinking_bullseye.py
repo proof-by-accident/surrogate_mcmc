@@ -135,7 +135,7 @@ class ShrinkingBullseyeChain_NormProp(object):
         self.t = 0
         self.accept_freq = 0
 
-    def radCalc(self,x,samps,N):
+    def rad_calc(self,x,samps,N):
         if N > np.shape(self.S)[0]:
             print('Not possible!')
             return()
@@ -144,61 +144,34 @@ class ShrinkingBullseyeChain_NormProp(object):
         R = radii[N]
         return(R)
 
-    #Functions to calculate regression of fwd model response at candidate point and at current point
-    def cand_regress(self):
-        cand_Rdef = self.radCalc(self.cand,self.S,self.Ndef)
-        cand_R = self.radCalc(self.cand,self.S,self.N)
-        self.cand_B = self.S[npla.norm(self.S-self.cand,ord=2,axis=1) <= cand_R]
-        self.cand_fB = self.fS[npla.norm(self.S-self.cand,ord=2,axis=1) <= cand_R]
-        while np.shape(self.cand_B)[0] > self.N:
-            self.cand_B = np.delete(self.cand_B,np.random.choice(range(0,np.shape(self.cand_B)[0])),axis=0)
-            self.cand_fB = np.delete(self.cand_fB,np.random.choice(range(0,np.shape(self.cand_fB)[0])),axis=0)
+    def weight_func(theta, b, Rdef, R):
+        w = ( 1. - ( ( npla.norm( theta - b ) - rdef )/( r - rdef ) ) **3 ) ) **3
+
+        return min( 1. , w )
+
+    # function calculates regression coefficients for LQR model of likelihood surface
+    def regress(self, theta, B, fB, Rdef, R):
+        N = B.shape[0]
             
-        W = np.sqrt([min(1,(1-((npla.norm(self.cand_B[i,:]-self.cand)-cand_Rdef)/(cand_R-cand_Rdef))**3)**3) for i in range(0,np.shape(self.cand_B)[0])])
-        W = np.diag(W)
-        self.cand_W = W
-        
-        phi = np.zeros([self.N,2*self.dim+1])
-        phi[:,0] = np.ones(self.N)
-        phi[:,1:(self.dim+1)] = self.cand_B
-        phi[:,(self.dim+1):(2*self.dim+1)] = self.cand_B**2
-        self.cand_phi = phi
+        w = [ self.weight_func( theta, B[i], Rdef, R )  for i in range(0,N) ]
+                
+        phi = np.empty([ N, 2*self.dim + 1 ])
+       
+        phi[:,0] = np.ones( N )
+        phi[:,1:(self.dim+1)] = B
+        phi[:,(self.dim+1):(2*self.dim+1)] = self.B**2
 
-        self.cand_q,self.cand_r = npla.qr(np.dot(W,phi),mode='complete')
-        q = self.cand_q[:,0:self.cand_r.shape[1]]
-        r = self.cand_r[0:self.cand_r.shape[1],:]
+        q,r = npla.qr(np.dot(W,phi),mode='complete')
+        q = q[ :, 0:r.shape[1] ]
+        r = r[ 0:r.shape[1], : ]
         
-        self.cand_Z = np.dot(npla.inv(r),q.T)
-        self.cand_Z = np.dot(self.cand_Z,np.dot(W,self.cand_fB))
+        Z = np.dot( npla.inv(r), q.T ) 
+        Z = np.dot( Z, w * fB )
 
-    def curr_regress(self):        
-        curr_Rdef = self.radCalc(self.curr,self.S,self.Ndef)
-        curr_R = self.radCalc(self.curr,self.S,self.N)
-        self.curr_B = self.S[npla.norm(self.S-self.curr,ord=2,axis=1) <= curr_R]
-        self.curr_fB = self.fS[npla.norm(self.S-self.curr,ord=2,axis=1) <= curr_R]
-        while np.shape((self.curr_B))[0] > self.N:
-            self.curr_B = np.delete(self.curr_B,np.random.choice(range(0,np.shape(self.curr_B)[0])),axis=0)
-            self.curr_fB = np.delete(self.curr_fB,np.random.choice(range(0,np.shape(self.curr_fB)[0])),axis=0)
-            
-        W = np.sqrt([min(1,(1-((npla.norm(self.curr_B[i,:]-self.curr)-curr_Rdef)/(curr_R-curr_Rdef))**3)**3) for i in range(0,np.shape(self.curr_B)[0])])
-        W = np.diag(W)
-        self.curr_W = W
-        
-        phi = np.zeros([self.N,2*self.dim+1])
-        phi[:,0] = np.ones(self.N)
-        phi[:,1:(self.dim+1)] = self.curr_B
-        phi[:,(self.dim+1):(2*self.dim+1)] = self.curr_B**2
-        self.curr_phi = phi
-
-        self.curr_q,self.curr_r = npla.qr(np.dot(W,phi), mode='complete')
-        q = self.curr_q[:,0:self.curr_r.shape[1]]
-        r = self.curr_r[0:self.curr_r.shape[1],:]                                                                  
-        
-        self.curr_Z = np.dot(npla.inv(r),q.T)
-        self.curr_Z = np.dot(self.curr_Z,np.dot(W,self.curr_fB))
+        return Z, q, r, w
 
     #Functions to cross validate the regression at the candidate and current points
-    def cand_cross_val(self,curr_post,eps):
+    def cross_val(self,curr_post,eps):
         a_list = np.zeros(self.N)
 
         for i in range(0,self.N):
@@ -217,9 +190,8 @@ class ShrinkingBullseyeChain_NormProp(object):
                 q = cand_q_up[:,0:cand_r_up.shape[1]]
                 r = cand_r_up[0:cand_r_up.shape[1],:]                
             
-                
-            cand_Z = np.dot(npla.inv(r),q.T)            
-            cand_Z = np.dot(cand_Z,np.dot(self.cand_W[np.arange(self.N)!=i,:][:,np.arange(self.N)!=i],self.cand_fB[np.arange(self.N)!= i,:]))
+            Z = np.dot(npla.inv(r),q.T)            
+            Z = np.dot(cand_Z,np.dot(self.cand_W[np.arange(self.N)!=i,:][:,np.arange(self.N)!=i],self.cand_fB[np.arange(self.N)!= i,:]))
 
             cand = self.cand
             cand_post = self.prior(self.cand)*self.like(np.dot(np.append(1,np.append(cand,cand**2)),self.cand_Z))
