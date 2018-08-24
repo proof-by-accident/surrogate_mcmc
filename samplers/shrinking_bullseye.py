@@ -103,10 +103,10 @@ class MetHastChain_NormProp(object):
         #self.t += 1
 
 class ShrinkingBullseyeChain_NormProp(object):
-    def __init__(self,dat,prior,like,fwdMod,start,S,fS,size=1):
+    def __init__(self, dat, prior, true_like, fwdMod, start, S, fS, size=1):
         self.data = dat
         self.prior = prior
-        self.like = like
+        self.true_like = true_like
         self.fwdMod = fwdMod
         
         self.size = size
@@ -135,14 +135,14 @@ class ShrinkingBullseyeChain_NormProp(object):
         self.t = 0
         self.accept_freq = 0
 
-    def rad_calc(self,x,samps,N):
+    def rad_calc(self, theta, N ):
         if N > np.shape(self.S)[0]:
             print('Not possible!')
             return()
 
         radii = np.sort(npla.norm(self.S-x,ord=2,axis=1))
-        R = radii[N]
-        return(R)
+        Rdef = radii[N]
+        return Rdef
 
     def weight_func(theta, b, Rdef, R):
         w = ( 1. - ( ( npla.norm( theta - b ) - rdef )/( r - rdef ) ) **3 ) ) **3
@@ -170,139 +170,107 @@ class ShrinkingBullseyeChain_NormProp(object):
 
         return Z, q, r, w
 
+    def regress_predict(self, theta, Z):
+        X = np.append( 1, np.append( theta, theta**2 ) )
+        return np.dot( X, Z )
+
     #Functions to cross validate the regression at the candidate and current points
-    def cross_val(self,curr_post,eps):
-        a_list = np.zeros(self.N)
+    def cross_val(theta, post_theta_prime, a , B, fB, q, r, W, cand_flag = 0):
+        N = B.shape[0]
+
+        a_list = np.zeros(N)
 
         for i in range(0,self.N):
-            if self.cand_r.shape[0] > self.cand_r.shape[1]:
-                cand_q_up, cand_r_up = scla.qr_delete(self.cand_q,self.cand_r,k=i)
-                q = cand_q_up[:,0:cand_r_up.shape[1]]
-                r = cand_r_up[0:cand_r_up.shape[1],:]
+            q_up, r_up = scla.qr_delete( q, r, k=i )
+            q_up = q_up[:,0:r_up.shape[1]]
+            r_up = r_up[0:r_up.shape[1],:]                
+            
+            W_up = np.delete( W, i )
+            fB_up = np.delete( fB, i )
 
-            elif self.cand_r.shape[0] == self.cand_r.shape[1]:
-                cand_q_up, cand_r_up = scla.qr_delete(self.cand_q,self.cand_r,k=i)
-                q = cand_q_up
-                r = cand_r_up
+            Z_up = np.dot( npla.inv(r_up), q_up.T )            
+            Z_up = np.dot( Z_up, W_up * fB_up )
+
+            post_up = self.prior( theta ) * self.regress_predict( theta, Z_up )
+
+            try:
+                assert post_up >= 0.
+
+            except AssertionError:
+                print 'negative predicted posterior'
+                post_up = abs( post_up )
+
+            if cand_flag:
+                a_list[i] = min( 1., post_up / post_theta_prime )
 
             else:
-                cand_q_up, cand_r_up = scla.qr_delete(self.cand_q,self.cand_r,k=i)
-                q = cand_q_up[:,0:cand_r_up.shape[1]]
-                r = cand_r_up[0:cand_r_up.shape[1],:]                
-            
-            Z = np.dot(npla.inv(r),q.T)            
-            Z = np.dot(cand_Z,np.dot(self.cand_W[np.arange(self.N)!=i,:][:,np.arange(self.N)!=i],self.cand_fB[np.arange(self.N)!= i,:]))
-
-            cand = self.cand
-            cand_post = self.prior(self.cand)*self.like(np.dot(np.append(1,np.append(cand,cand**2)),self.cand_Z))
-
-            if cand_post == 0.0:
-                a_list[i] = 0
-
-            else:            
-                a_list[i] = min(1,cand_post/curr_post)
-
-        self.a_list = a_list
-        err_list = np.abs(self.a-a_list)# + np.abs(min(1,1./self.a)-np.array([min(1,1./a) for a in a_list]))
-        err = np.max(err_list)
-        if err >= eps:
-            flag = 1
-        else:
-            flag =0
-
-        return(flag)
-            
-
-    def curr_cross_val(self,cand_post,eps):
-        a_list = np.zeros(self.N)
-
-        for i in range(0,self.N):
-            if self.cand_r.shape[0] > self.cand_r.shape[1]:
-                curr_q_up, curr_r_up = scla.qr_delete(self.curr_q,self.curr_r,k=i)
-                q = curr_q_up[:,0:curr_r_up.shape[1]]
-                r = curr_r_up[0:curr_r_up.shape[1],:]
-
-            elif self.curr_r.shape[0] == self.curr_r.shape[1]:
-                curr_q_up, curr_r_up = scla.qr_delete(self.curr_q,self.curr_r,k=i)
-                q = curr_q_up
-                r = curr_r_up
-
-            else:
-                curr_q_up, curr_r_up = scla.qr_delete(self.curr_q,self.curr_r,k=i)
-                q = curr_q_up[:,0:curr_r_up.shape[1]]
-                r = curr_r_up[0:curr_r_up.shape[1],:]
+                if post_up == 0.0:
+                    a_list[i] = 1.
+                    
+                else:            
+                    a_list[i] = min(1,cand_post/curr_post)
                 
-            curr_Z = np.dot(npla.inv(r),q.T)
-            curr_Z = np.dot(curr_Z,np.dot(self.curr_W[np.arange(self.N)!=i,:][:,np.arange(self.N)!=i],self.curr_fB[np.arange(self.N)!= i,:]))
-
-            curr = self.curr
-            curr_post = self.prior(self.curr)*self.like(np.dot(np.append(1,np.append(curr,curr**2)),self.curr_Z))
-
-            if cand_post == 0.0:
-                a_list[i] = 0
-
-            else:            
-                a_list[i] = min(1,cand_post/curr_post)
-
-            
-        err_list = np.abs(min(1,self.a)-np.array([a for a in a_list]))# + np.abs(min(1,1./self.a)-np.array([min(1,1./a) for a in a_list]))
+        err_list = np.abs(a-a_list)# + np.abs(min(1,1./self.a)-np.array([min(1,1./a) for a in a_list]))
         err = np.max(err_list)
         if err >= eps:
-            flag = 1
+            return 1
         else:
-            flag =0
+            return 0
 
-        return(flag)
-
-
-    def propose(self,var):
-        self.cand = np.random.multivariate_normal(self.curr,var,1)[0]
+    def propose(self, theta, var):
+        return np.random.multivariate_normal( theta, var, 1 )[0]
 
     #Functions to refine parameter samples
-
     def refine(self,theta,R):
         cons = ({'type' : 'ineq', 'fun': lambda x: R - npla.norm(x - theta, ord=2)},{'type' : 'ineq', 'fun': lambda x: self.prior(x)})
         sol = sp.optimize.minimize(lambda x: -1*np.log(min(npla.norm(x-self.S,ord=2,axis=1))), theta, constraints=cons, options = {'maxiter' : 10000})
-        self.refine_tracker.append(self.t)
-        return(sol['x'])
-    
-    def cand_refine(self):
-        update = self.refine(self.cand,self.radCalc(self.cand,self.S,self.Ndef))
-        self.S = np.vstack([self.S,update])
-        self.fS = np.vstack([self.fS,self.fwdMod(update)])
+        self.refine_tracker.append( self.t )
 
-    def curr_refine(self):
-        update = self.refine(self.curr,self.radCalc(self.curr,self.S,self.Ndef))
-        self.S = np.vstack([self.S,update])
-        self.fS = np.vstack([self.fS,self.fwdMod(update)])
-        
+        update = sol['x']
+
+        self.S = np.vstack([ self.S, update])
+        self.fS = np.vstack([ self.fS, self.true_like(update) ])
+
+
+    def post_approx( self, theta ):
+        Rdef = self.rad_calc( theta, self.Ndef )
+        R  = self.rad_calc( theta, self.N )
+
+        B = self.S[ (self.S - theta) <= self.cand_R ]
+        fB = self.fS[ (self.S - theta) <= self.cand_R ]
+
+        Z, q, r, w = self.regress( theta, B, fB, Rdef, R)
+        post = self.prior( theta ) * self.regress_predict( theta, Z )
+
+        return post, Z, q, r, w, R
+
     #Update routine
     def update(self,var):        
-        self.cand = np.random.multivariate_normal(self.curr,var,1)[0]
-
-        self.cand_regress()
+        self.cand = self.propose( self.curr, var )
+        
+        self.cand_post, self.cand_Z, self.cand_q, self.cand_r, self.cand_w, self.cand_R = self.post_approx( self.cand )
 
         if self.t==0:
-            self.curr_regress()
+            self.curr_post, self.curr_Z, self.curr_q, self.curr_r, self.curr_w, self.curr_R = self.post_approx( self.curr )
 
-        self.cand_p = self.cand
-        self.curr_p = self.curr
-        self.cand_post = self.prior(self.cand)*self.like(np.dot(np.append(1,np.append(self.cand_p,self.cand_p**2)),self.cand_Z))
-        self.curr_post = self.prior(self.curr)*self.like(np.dot(np.append(1,np.append(self.curr_p,self.curr_p**2)),self.curr_Z))
+        if (self.curr_post == 0.0):
+            self.a = 1.
 
-        if (self.cand_post == 0.0) or np.isnan(self.cand_post):
-            self.a = 0
+        elif np.isnan(self.cand_post):
+            self.a = 0.
 
         else:            
-            self.a = min(1,self.cand_post/self.curr_post)
+            self.a = min( 1. , self.cand_post/self.curr_post )
 
         eps = 0.1*(self.t+1)**(-0.1)
         rand_refine = 0.01*(self.t+1)**(-0.2)
-        #eps = 0.1**(-0.1)
-        #rand_refine = 0.01
 
-        while self.cand_cross_val(self.curr_post,eps):
-            self.cand_refine()
+        def refine(self,theta,R):
+        
+        def cross_val(theta, post_theta_prime, a , B, fB, q, r, W, cand_flag = 0):
+
+        while self.cross_val( self.cand, self.curr_post, self.a, self.cand_B, self.cand_fB, self.cand_q, self.cand_r, self.cand_w, cand_flag = 1 ):
+            self.refine( self.cand, self.cand_R )
             self.cand_regress()
             
             self.cand_p = np.append(1,np.append(self.cand,self.cand**2))
@@ -499,3 +467,14 @@ np.savetxt( 'test_samps.csv', test_samps, delimiter = "," )
 #plt.plot(x,y0)
 #plt.plot(x,y1)
 #plt.plot(x,y2)
+
+#
+#    def cand_refine(self):
+#        update = self.refine(self.cand,self.radCalc(self.cand,self.S,self.Ndef))
+#        self.S = np.vstack([self.S,update])
+#        self.fS = np.vstack([self.fS,self.fwdMod(update)])
+#
+#    def curr_refine(self):
+#        update = self.refine(self.curr,self.radCalc(self.curr,self.S,self.Ndef))
+#        self.S = np.vstack([self.S,update])
+#        self.fS = np.vstack([self.fS,self.fwdMod(update)])
