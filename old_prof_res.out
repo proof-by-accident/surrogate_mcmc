@@ -1,0 +1,514 @@
+init sampler...
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+done
+burn-in...
+done
+sampling...
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+Suitable refinement not found, adding random point
+done
+Wrote profile results to qs.py.lprof
+Timer unit: 1e-06 s
+
+Total time: 320.125 s
+File: samplers/shrinking_bullseye.py
+Function: __init__ at line 37
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    37                                               @profile
+    38                                               def __init__(self, prior, true_like, start, S_seed, fS_seed, train = None, size=int(1e9)):
+    39         4          6.0      1.5      0.0          self.prior = prior
+    40         4          4.0      1.0      0.0          self.true_like = true_like
+    41         4          4.0      1.0      0.0          self.log_like = lambda x: np.log( true_like( x ) )
+    42                                           
+    43         4         15.0      3.8      0.0          self.shape = [size,np.shape(start)[0]]
+    44         4          5.0      1.2      0.0          self.dim = np.shape(start)[0]
+    45         4         58.0     14.5      0.0          self.samps = np.zeros(self.shape)
+    46                                           
+    47                                           
+    48         4          4.0      1.0      0.0          if self.dim == 1:
+    49                                                       self.Ndef = int((self.dim+1)*(self.dim+2)/2)
+    50                                           
+    51                                                       self.N = 2*self.Ndef
+    52                                           
+    53                                                   else:
+    54         4          8.0      2.0      0.0              self.Ndef = int((self.dim+1)*(self.dim+2)/2)
+    55         4         45.0     11.2      0.0              self.N = int(np.ceil(np.sqrt(self.dim)*self.Ndef))
+    56                                                   
+    57         4         13.0      3.2      0.0          self.samps[0,:] = start
+    58         4          6.0      1.5      0.0          self.curr = self.samps[0]
+    59                                           
+    60         4          4.0      1.0      0.0          self.refine_tracker = []
+    61                                           
+    62         4          2.0      0.5      0.0          if self.dim == 1:
+    63                                                       self.S = np.reshape(S_seed, [np.shape(S_seed)[0],1] )
+    64                                                       self.fS = np.reshape(fS_seed, [np.shape(fS_seed)[0],1] )
+    65                                           
+    66                                                   else:
+    67         4          2.0      0.5      0.0              self.S = S_seed
+    68         4          2.0      0.5      0.0              self.fS = fS_seed
+    69                                           
+    70         4          2.0      0.5      0.0          self.t = 0
+    71         4          1.0      0.2      0.0          self.accept_freq = 0
+    72                                           
+    73         4          5.0      1.2      0.0          if train == None:
+    74                                                       train = len(S)
+    75                                           
+    76                                                   else:
+    77                                                       pass
+    78                                                   
+    79         4  320124695.0 80031173.8    100.0          self.seed_grow( train )
+
+Total time: 319.819 s
+File: samplers/shrinking_bullseye.py
+Function: seed_grow at line 81
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    81                                               @profile
+    82                                               def seed_grow( self, train_size ):
+    83         4         33.0      8.2      0.0          orig_S = copy.copy( self.S )
+    84        84         90.0      1.1      0.0          for s in orig_S:
+    85                                                       
+    86    666680    6013949.0      9.0      1.9              S_spacing = np.mean( [ npla.norm( s1 - s2 ) for s1,s2 in it.combinations_with_replacement( self.S, 2 ) ] )
+    87                                           
+    88       880       1047.0      1.2      0.0              for junk_index in range( train_size):
+    89       800     209980.0    262.5      0.1                  refine_center = s + np.random.multivariate_normal( np.zeros( self.dim ) , S_spacing * np.eye( self.dim ) )
+    90       800       5906.0      7.4      0.0                  refine_range = 2 * S_spacing * np.random.uniform()
+    91                                           
+    92       800  313587993.0 391985.0     98.1                  self.refine( refine_center, refine_range )
+
+Total time: 0.394393 s
+File: samplers/shrinking_bullseye.py
+Function: rad_calc at line 95
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    95                                               @profile
+    96                                               def rad_calc(self, theta, N ):
+    97      5374     381392.0     71.0     96.7          radii = np.sort(npla.norm( self.S- theta, ord=2, axis=1 ))
+    98                                           
+    99      5374       4135.0      0.8      1.0          try:
+   100      5374       6359.0      1.2      1.6              Rdef = radii[N+1]
+   101                                           
+   102                                                   except IndexError:
+   103                                                       print 'Sample set S is too small, consider increasing'
+   104                                                       return np.max( radii )
+   105                                                               
+   106      5374       2507.0      0.5      0.6          return Rdef
+
+Total time: 0.427554 s
+File: samplers/shrinking_bullseye.py
+Function: weight_func at line 108
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   108                                               @profile
+   109                                               def weight_func(self, theta, b, Rdef, R):
+   110     26870     373781.0     13.9     87.4          r = npla.norm( theta - b )
+   111                                           
+   112     26870      19890.0      0.7      4.7          if r <= Rdef:
+   113     20955       9460.0      0.5      2.2              return 1.
+   114                                           
+   115      5915       4025.0      0.7      0.9          elif ( Rdef <= r ) and ( r <= R ):            
+   116      5915      17688.0      3.0      4.1              w = (1. - ( (r-Rdef)/(R-Rdef) )**3.)**3.
+   117                                                       
+   118      5915       2710.0      0.5      0.6              return w
+   119                                           
+   120                                                   else:
+   121                                                       return 0.
+
+Total time: 2.20413 s
+File: samplers/shrinking_bullseye.py
+Function: regress at line 125
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   125                                               @profile
+   126                                               def regress(self, theta, B, fB, Rdef, R, i = None):        
+   127      2687       3777.0      1.4      0.2          N = B.shape[0]
+   128                                           
+   129      2687       3297.0      1.2      0.1          if len(B.shape) == 1:
+   130                                                       B = np.reshape(B, (N, self.dim) )
+   131                                           
+   132                                           
+   133      2687      22740.0      8.5      1.0          phi = np.ones([ N, (self.dim + 2)*(self.dim + 1)/2 ])
+   134                                           
+   135      2687       2019.0      0.8      0.1          try:
+   136      2687       3548.0      1.3      0.2              assert phi.shape[0] > phi.shape[1]
+   137                                           
+   138                                                   except AssertionError:
+   139                                                       print 'insufficient sample points, inference may be problematic...'
+   140                                           
+   141      2687     169529.0     63.1      7.7          scale = np.sqrt(np.var(theta))
+   142      2687      22803.0      8.5      1.0          theta_hat = (B - theta)/scale
+   143                                                   
+   144     29557     644173.0     21.8     29.2          w = np.array([ self.weight_func( np.zeros(self.dim) , b, Rdef/scale , R/scale )  for b in theta_hat ])
+   145                                                   
+   146      2687      10587.0      3.9      0.5          phi[:,1:(self.dim+1)] = theta_hat
+   147                                           
+   148    110167     175402.0      1.6      8.0          theta_hat_squared = np.array([ [a*b for a,b in it.combinations_with_replacement(row,2)] for row in theta_hat ])
+   149                                                   
+   150      2687       6877.0      2.6      0.3          phi[:,(self.dim+1):] = theta_hat_squared
+   151                                                  
+   152      2687     443547.0    165.1     20.1          q,r = npla.qr( np.dot( phi.T, np.dot(np.diag(w),phi) ), mode='complete')        
+   153                                           
+   154      2687     674243.0    250.9     30.6          Z = np.dot( npla.inv(r), q.T )            
+   155      2687      19047.0      7.1      0.9          Z = np.dot( Z, np.dot( phi.T, w * fB) )
+   156                                           
+   157      2687       2545.0      0.9      0.1          return Z, q, r, w
+
+Total time: 0.131792 s
+File: samplers/shrinking_bullseye.py
+Function: regress_predict at line 159
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   159                                               @profile
+   160                                               def regress_predict(self, theta, Z):        
+   161     29007     131792.0      4.5    100.0          return np.exp( Z[0] )
+
+Total time: 3.78823 s
+File: samplers/shrinking_bullseye.py
+Function: post_approx at line 163
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   163                                               @profile
+   164                                               def post_approx( self, theta ): 
+   165      2687     234927.0     87.4      6.2          Rdef = self.rad_calc( theta, self.Ndef )
+   166      2687     197523.0     73.5      5.2          R  = self.rad_calc( theta, self.N )
+   167                                                   
+   168      2687     151678.0     56.4      4.0          B = self.S[ npla.norm(self.S - theta, axis=1 ) < R ]
+   169      2687     124168.0     46.2      3.3          fB = np.array(self.fS)[ npla.norm(self.S - theta, axis=1 ) < R ]
+   170                                                   
+   171      2687    2360384.0    878.4     62.3          Z, q, r, w = self.regress( theta, B, fB, Rdef, R)               
+   172                                                       
+   173      2687     716688.0    266.7     18.9          post = self.prior( theta ) * self.regress_predict( theta, Z )
+   174                                           
+   175      2687       2859.0      1.1      0.1          return post, Z, q, r, w, R, B, fB
+
+Total time: 19.4149 s
+File: samplers/shrinking_bullseye.py
+Function: cross_val at line 179
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   179                                               @profile
+   180                                               def cross_val(self, theta, post_theta_prime, a , B, fB, q, r, W, cand_flag = 0, eps = 1e-2):
+   181      2632       4622.0      1.8      0.0          N = B.shape[0]
+   182                                           
+   183      2632       8274.0      3.1      0.0          a_list = np.zeros(N)
+   184                                           
+   185     28952      40420.0      1.4      0.2          for i in range(0,N):            
+   186     26320    1119729.0     42.5      5.8              W_up = np.delete( W, i )
+   187     26320     900954.0     34.2      4.6              B_up = np.delete( B, i, axis=0 )
+   188     26320     855401.0     32.5      4.4              fB_up = np.delete( fB, i )
+   189                                           
+   190     26320     207346.0      7.9      1.1              phi_up = np.ones([ N-1, (self.dim + 2)*(self.dim + 1)/2 ])
+   191                                           
+   192     26320    1542346.0     58.6      7.9              scale = np.sqrt(np.var(theta))
+   193     26320     244403.0      9.3      1.3              theta_hat = (B_up - theta)/scale
+   194                                                       
+   195     26320     102778.0      3.9      0.5              phi_up[:,1:(self.dim+1)] = theta_hat
+   196                                                       
+   197    973840    2119317.0      2.2     10.9              theta_hat_squared = np.array([ [x*y for x,y in it.combinations_with_replacement(row,2)] for row in theta_hat ])
+   198                                                   
+   199     26320      74958.0      2.8      0.4              phi_up[:,(self.dim+1):] = theta_hat_squared
+   200                                           
+   201    105280     630206.0      6.0      3.2              phi_down = np.concatenate([ [1], (B[i]-theta)/scale, [x*y for x,y in it.combinations_with_replacement( (B[i]-theta)/scale, 2 ) ] ])
+   202                                           
+   203     26320     911628.0     34.6      4.7              q_up, r_up = scla.qr_update( q, r, -phi_down, phi_down )
+   204                                                       
+   205     26320    3157549.0    120.0     16.3              Z_up = np.dot( npla.inv(r_up), q_up.T )
+   206     26320     176122.0      6.7      0.9              Z_up = np.dot( Z_up, np.dot( phi_up.T, W_up * fB_up ) )
+   207                                           
+   208     26320    6742296.0    256.2     34.7              post_up = self.prior( theta ) * self.regress_predict( theta, Z_up )
+   209                                           
+   210     26320      31352.0      1.2      0.2              try:
+   211     26320      50106.0      1.9      0.3                  assert post_up >= 0.
+   212                                           
+   213                                                       except AssertionError:
+   214                                                           post_up = abs( post_up )
+   215                                           
+   216     26320      28750.0      1.1      0.1              if cand_flag:
+   217     26320     344796.0     13.1      1.8                  a_list[i] = self.a_calc( post_up, post_theta_prime )
+   218                                           
+   219                                                       else:
+   220                                                           a_list[i] = self.a_calc( post_theta_prime, post_up )
+   221                                           
+   222     28952      87971.0      3.0      0.5          err_list = np.abs(a-a_list) + np.abs(min(1.,1./a)-np.array([min(1.,1./a_up) for a_up in a_list]))
+   223      2632      26826.0     10.2      0.1          err = np.max(err_list)
+   224      2632       4124.0      1.6      0.0          if err >= eps:
+   225      2228       2260.0      1.0      0.0              return 1
+   226                                                   else:
+   227       404        407.0      1.0      0.0              return 0
+
+Total time: 0.119902 s
+File: samplers/shrinking_bullseye.py
+Function: propose at line 229
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   229                                               @profile
+   230                                               def propose(self, theta, var):
+   231       404        330.0      0.8      0.3          if self.dim == 1:
+   232                                                       return np.random.normal( theta, var, 1)[0]
+   233                                           
+   234                                                   else:
+   235       404     119572.0    296.0     99.7              return np.random.multivariate_normal( theta, var, 1 )[0]
+
+Total time: 1114.21 s
+File: samplers/shrinking_bullseye.py
+Function: refine at line 238
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   238                                               @profile
+   239                                               def refine(self,theta,R):
+   240                                                   # require that the refinement is within .9*R, rather than just R, bc otherwise the sol tends to be slightly outside R due to numerical error 
+   241      3028       7281.0      2.4      0.0          cons = [{'type' : 'ineq', 'fun': lambda x: .9*R - npla.norm(x - theta)},
+   242      3028       6872.0      2.3      0.0                  {'type' : 'ineq', 'fun': lambda x: self.prior(x)*self.true_like(x) } ]
+   243                                           
+   244   1252181   19593220.0     15.6      1.8          B = np.array([ s for s in self.S if npla.norm(s-theta) <= R ])
+   245                                           
+   246      3028       5381.0      1.8      0.0          penalty = lambda x: min([ npla.norm( x - s ) for s in B ])
+   247                                                   
+   248      3028 1093739630.0 361208.6     98.2          sol = sp.optimize.minimize(lambda x: -1*min(npla.norm(x-self.S,ord=2,axis=1)), theta, constraints=cons, options = {'maxiter' : 10000})
+   249      3028       8163.0      2.7      0.0          self.refine_tracker.append( self.t )
+   250                                           
+   251      3028       8144.0      2.7      0.0          update = sol['x']
+   252                                                               
+   253      3028      72651.0     24.0      0.0          if not any( np.isnan(update) ) and npla.norm( theta - update ) <= R  :
+   254      2909      53465.0     18.4      0.0              self.S = np.vstack([ self.S, update])
+   255      2909     629078.0    216.3      0.1              self.fS = np.concatenate([ self.fS, [self.log_like(update)] ])
+   256                                           
+   257                                           
+   258                                                   else:
+   259       119        543.0      4.6      0.0              print 'Suitable refinement not found, adding random point'
+   260                                                       
+   261       119      33717.0    283.3      0.0              update = np.random.multivariate_normal(theta, (R/3)*np.eye(self.dim ))
+   262                                           
+   263       119      24476.0    205.7      0.0              while self.prior( update ) < 0:
+   264                                                           update = np.random.multivariate_normal(theta, (R/3)*np.eye(self.dim ))
+   265                                           
+   266       119       2241.0     18.8      0.0              self.S = np.vstack([ self.S, update])
+   267       119      24670.0    207.3      0.0              self.fS = np.concatenate([ self.fS, [self.log_like(update)] ])
+
+Total time: 0.174413 s
+File: samplers/shrinking_bullseye.py
+Function: a_calc at line 270
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   270                                               @profile        
+   271                                               def a_calc( self, p_cand, p_curr ):
+   272     28952      28920.0      1.0     16.6          if p_curr == 0.0:
+   273                                                       return 1.
+   274                                           
+   275     28952      92538.0      3.2     53.1          elif np.isnan( p_cand ):
+   276                                                       return 0.
+   277                                           
+   278                                                   else:            
+   279     28952      52955.0      1.8     30.4              return min( 1. , p_cand/p_curr )
+
+Total time: 806.141 s
+File: samplers/shrinking_bullseye.py
+Function: refine_routine at line 283
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   283                                               @profile
+   284                                               def refine_routine(self):
+   285      2228  802865838.0 360352.7     99.6          self.refine( self.cand, self.cand_R )
+   286      2228    3182672.0   1428.5      0.4          self.cand_post, self.cand_Z, self.cand_q, self.cand_r, self.cand_w, self.cand_R, self.cand_B, self.cand_fB = self.post_approx( self.cand )
+   287                                                       
+   288      2228      10178.0      4.6      0.0          if self.t==0:
+   289        47      53238.0   1132.7      0.0              self.curr_post, self.curr_Z, self.curr_q, self.curr_r, self.curr_w, self.curr_R, self.curr_B, self.curr_fB = self.post_approx( self.curr )
+   290                                                           
+   291                                                   else:
+   292                                                       pass
+   293                                                       
+   294      2228      29292.0     13.1      0.0          self.a = self.a_calc( self.cand_post, self.curr_post )
+
+Total time: 828.145 s
+File: samplers/shrinking_bullseye.py
+Function: update at line 299
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   299                                               @profile
+   300                                               def update(self, var ):
+   301       404       1120.0      2.8      0.0          eps = 0.1*(self.t+1)**(-0.1)
+   302       404        600.0      1.5      0.0          rand_refine = 0.01*(self.t+1)**(-0.2)
+   303                                           
+   304       404     123106.0    304.7      0.0          self.cand = self.propose( self.curr, var )
+   305                                           
+   306                                           
+   307       404     579841.0   1435.2      0.1          self.cand_post, self.cand_Z, self.cand_q, self.cand_r, self.cand_w, self.cand_R, self.cand_B, self.cand_fB = self.post_approx( self.cand )
+   308                                                   
+   309       404        573.0      1.4      0.0          if self.t==0:
+   310         8       8732.0   1091.5      0.0              self.curr_post, self.curr_Z, self.curr_q, self.curr_r, self.curr_w, self.curr_R, self.curr_B, self.curr_fB = self.post_approx( self.curr )
+   311                                           
+   312                                                   else:
+   313                                                       pass
+   314                                           
+   315       404       5457.0     13.5      0.0          self.a = self.a_calc( self.cand_post, self.curr_post )
+   316                                           
+   317                                           
+   318       404       3374.0      8.4      0.0          if np.random.binomial(1, rand_refine):
+   319                                                       self.refine_routine()
+   320                                           
+   321                                                   else:
+   322                                                       pass
+   323                                           
+   324                                           
+   325                                           
+   326      2632   21247596.0   8072.8      2.6          while self.cross_val( self.cand, self.curr_post, self.a, self.cand_B, self.cand_fB, self.cand_q, self.cand_r, self.cand_w, cand_flag = 1, eps=eps ):            
+   327      2228  806163841.0 361833.0     97.3              self.refine_routine()
+   328                                           
+   329       404       4659.0     11.5      0.0          accept_flag = np.random.binomial( 1, self.a )
+   330                                           
+   331       404        817.0      2.0      0.0          if self.t > self.samps.shape[0]:
+   332                                                       self.samps = np.vstack([ self.samps, np.zeros( self.dim ) ])
+   333                                                       
+   334                                                   else:
+   335                                                       pass
+   336                                                   
+   337       404        422.0      1.0      0.0          if accept_flag:
+   338       251        691.0      2.8      0.0              self.samps[ self.t ] = self.cand
+   339       251        463.0      1.8      0.0              self.curr = self.cand
+   340                                                       
+   341       251        264.0      1.1      0.0              self.curr_post, self.curr_Z, self.curr_q, self.curr_r, self.curr_w, self.curr_R, self.curr_B, self.curr_fB = ( self.cand_post,
+   342       251        262.0      1.0      0.0                                                                                                                             self.cand_Z,
+   343       251        257.0      1.0      0.0                                                                                                                             self.cand_q,
+   344       251        250.0      1.0      0.0                                                                                                                             self.cand_r,
+   345       251        256.0      1.0      0.0                                                                                                                             self.cand_w,
+   346       251        254.0      1.0      0.0                                                                                                                             self.cand_R,
+   347       251        276.0      1.1      0.0                                                                                                                             self.cand_B,
+   348       251        800.0      3.2      0.0                                                                                                                             self.cand_fB )
+   349                                                       
+   350       251        415.0      1.7      0.0              self.accept_freq += 1
+   351                                                       
+   352                                                   else:
+   353       153        453.0      3.0      0.0              self.samps[ self.t ] = self.curr
+   354                                                       
+   355       404        556.0      1.4      0.0          self.t += 1
+

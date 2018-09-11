@@ -8,7 +8,7 @@ from mpi4py import MPI
 
 import prog_bar
 import data_gen
-from samplers import fintzi_sampler as fs
+import fintzi_sampler as fs
 
 
 def generateSyntheticData( n_mems, parms, time_data ):
